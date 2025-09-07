@@ -1,8 +1,8 @@
 # Project 1 - Maze
 
 ## Student Information
-Vishnu Pillai
-008724619
+Vishnu Pillai  
+008724619  
 https://github.com/vpillai002/CS315-Project1
 
 ## Collaboration and Sources
