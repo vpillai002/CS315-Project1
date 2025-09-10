@@ -1,28 +1,27 @@
 #ifndef MAZE_HPP
 #define MAZE_HPP
 
-#include <vector>
 #include <string>
-
-struct Cell {
-    int row;
-    int col;
-};
+#include <vector>
+#include <utility>
 
 class Maze {
-    private: 
-        std::vector<std::vector<int>> grid;
-        Cell start;
-        Cell target;  
-        int rows;
-        int cols;
-        void findStartAndTarget();
+public:
+    Maze(const std::string& filename);
 
-    public:
-        Maze(const std::string& filename);
-        bool solve();
-        void printMaze(bool solved = false) const;
+    // Solve the maze iteratively using stack-based DFS
+    bool solve();
 
+    // Print maze, optionally showing the solution path
+    void printMaze(bool showPath = false) const;
+
+private:
+    std::vector<std::vector<int>> grid;
+    int rows, cols;
+    std::pair<int, int> start, target;
+    std::vector<std::pair<int, int>> path;
+
+    bool isValid(int r, int c) const;
 };
 
 #endif // MAZE_HPP

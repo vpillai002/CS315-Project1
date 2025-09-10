@@ -2,114 +2,117 @@
 #include <iostream>
 #include <fstream>
 #include <stack>
-#include <stdexcept>
+#include <set>
+#include <unordered_map>
+#include <algorithm>
+using namespace std;
 
-Maze::Maze(const std::string& filename) {
-    std::ifstream in(filename);
+Maze::Maze(const string& filename) {
+    ifstream in(filename);
     if (!in) {
-        throw std::runtime_error("Could not open file");
+        cerr << "Error: could not open file " << filename << endl;
+        exit(1);
     }
 
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.empty()) continue;
-        std::vector<int> row;
-        for (char ch : line) {
-            if (ch == '0' || ch == '1') row.push_back(ch - '0'); 
+    string line;
+    while (getline(in, line)) {
+        vector<int> row;
+        for (char c : line) {
+            if (c == '0' || c == '1') {
+                row.push_back(c - '0');
+            }
         }
         if (!row.empty()) grid.push_back(row);
     }
+
     rows = grid.size();
     cols = rows ? grid[0].size() : 0;
 
-    if (rows == 0 || cols == 0) {
-        throw std::runtime_error("Empty or invalid maze");
+    // find start/target openings on border
+    vector<pair<int,int>> openings;
+    for (int c = 0; c < cols; c++) {
+        if (grid[0][c] == 0) openings.push_back({0, c});
+        if (grid[rows - 1][c] == 0) openings.push_back({rows - 1, c});
+    }
+    for (int r = 0; r < rows; r++) {
+        if (grid[r][0] == 0) openings.push_back({r, 0});
+        if (grid[r][cols - 1] == 0) openings.push_back({r, cols - 1});
     }
 
-    findStartAndTarget();
+    if (openings.size() != 2) {
+        cerr << "Maze must have exactly two openings on the border" << endl;
+        exit(1);
+    }
+
+    start = openings[0];
+    target = openings[1];
 }
 
-void Maze::findStartAndTarget() {
-    bool foundStart = false;
-    bool foundTarget = false;
-    
-    for (int r = 0; r < rows; r++) {
-        for (int c = 0; c < cols; c++) {
-            if (grid[r][c] == 0 && (r == 0 || r == rows - 1 || c == 0 || c == cols - 1)) {
-                if (!foundStart) {
-                    start = {r, c};
-                    foundStart = true;
-                } else if (!foundTarget) {
-                    target = {r, c};
-                    foundTarget = true;
-                }
-            }
-        }
-    }
-
-    if (!foundStart || !foundTarget) {
-        throw std::runtime_error("Maze must have exactly two openings on the border");
-    }
+bool Maze::isValid(int r, int c) const {
+    return r >= 0 && r < rows && c >= 0 && c < cols && grid[r][c] == 0;
 }
 
 bool Maze::solve() {
-    std::stack<Cell> s;
-    std::vector<std::vector<bool>> visited(rows, std::vector<bool>(cols, false));
+    stack<pair<int,int>> st;
+    set<pair<int,int>> visited;
+    unordered_map<int, pair<int,int>> parent; // map key = r*cols + c
 
-    s.push(start);
-    visited[start.row][start.col] = true;
+    st.push(start);
+    visited.insert(start);
 
-    while (!s.empty()) {
-        Cell current = s.top();
+    int dr[4] = {-1, 1, 0, 0};
+    int dc[4] = {0, 0, -1, 1};
 
-        if (current.row == target.row && current.col == target.col) {
-            // Found a solution -> mark the path
-            while (!s.empty()) {
-                Cell pathCell = s.top();
-                s.pop();
-                grid[pathCell.row][pathCell.col] = -1; // Mark path
-            }
-            return true; // Solved
+    bool found = false;
+
+    while (!st.empty()) {
+        auto [r, c] = st.top();
+        st.pop();
+
+        if (make_pair(r, c) == target) {
+            found = true;
+            break;
         }
 
-        bool moved = false;
-        const int dr[4] = {-1, 1, 0, 0};
-        const int dc[4] = {0, 0, -1, 1};
         for (int i = 0; i < 4; i++) {
-            int newRow = current.row + dr[i];
-            int newCol = current.col + dc[i];
-            if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols &&
-                grid[newRow][newCol] == 0 && !visited[newRow][newCol]) {
-                s.push({newRow, newCol});
-                visited[newRow][newCol] = true;
-                moved = true;
-                break; // take first valid move
+            int nr = r + dr[i], nc = c + dc[i];
+            if (isValid(nr, nc) && !visited.count({nr, nc})) {
+                st.push({nr, nc});
+                visited.insert({nr, nc});
+                parent[nr * cols + nc] = {r, c};
             }
-        }
-
-        if (!moved) {
-            s.pop(); // backtrack
         }
     }
-    return false; // No solution
+
+    if (!found) return false;
+
+    // reconstruct path
+    path.clear();
+    pair<int,int> cur = target;
+    while (cur != start) {
+        path.push_back(cur);
+        cur = parent[cur.first * cols + cur.second];
+    }
+    path.push_back(start);
+    reverse(path.begin(), path.end());
+
+    return true;
 }
 
-void Maze::printMaze(bool solved) const {
+void Maze::printMaze(bool showPath) const {
+    // Path lookup set for quick coloring
+    set<pair<int,int>> pathSet(path.begin(), path.end());
+
     for (int r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
             if (grid[r][c] == 1) {
-                std::cout << "1";
-            } else if (grid[r][c] == -1) {
-                // path cell
-                if (solved) {
-                    std::cout << "\033[32m*\033[0m";  // or: 
-                } else {
-                    std::cout << "0";
-                }
+                cout << "1";
+            } else if (showPath && pathSet.count({r, c})) {
+                cout << "\033[31m*\033[0m"; // red star
             } else {
-                std::cout << "0";
+                cout << "0";
             }
         }
-        std::cout << "\n";
+        cout << "\n";
     }
 }
