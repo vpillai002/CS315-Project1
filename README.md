@@ -27,6 +27,6 @@ Data structures used:
 
 ## Testing & Status
 It works as expected. I created two "maze" files, a "solve.txt" and a "unsolve.txt".  
-The project compiles with `"g++ -std=c++20 *.cpp"`  
-Running `"./a.out solve.txt"` will provide a maze with a path solved  
-Running `"./a.out unsolve.txt"` will provide the `"No solution possible."`  
+The project compiles with `g++ -std=c++20 *.cpp`  
+Running `./a.out solve.txt` will provide a maze with a path solved  
+Running `./a.out unsolve.txt` will provide the `"No solution possible."`  
